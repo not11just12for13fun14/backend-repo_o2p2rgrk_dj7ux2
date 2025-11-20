@@ -1,6 +1,10 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional
+
+from database import create_document
 
 app = FastAPI()
 
@@ -12,13 +16,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+class ContactSubmissionCreate(BaseModel):
+    name: str = Field(..., description="Sender full name")
+    email: EmailStr = Field(..., description="Sender email")
+    service: Optional[str] = Field(None, description="Requested service type")
+    message: str = Field(..., description="Message content")
+
+
 @app.get("/")
 def read_root():
     return {"message": "Hello from FastAPI Backend!"}
 
+
 @app.get("/api/hello")
 def hello():
     return {"message": "Hello from the backend API!"}
+
+
+@app.post("/api/contact")
+def create_contact(submission: ContactSubmissionCreate):
+    try:
+        inserted_id = create_document("contactsubmission", submission)
+        return {"ok": True, "id": inserted_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/test")
 def test_database():
